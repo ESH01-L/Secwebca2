@@ -35,8 +35,20 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 include('includes/config.php');
 
-if (isset($_SESSION['login']) && $_SESSION['login'] != '') {
-    $_SESSION['login'] = '';
+
+
+// Limit login attempts to prevent brute force attacks
+$max_attempts = 3;
+$lockout_time = 300; // 5 minutes
+
+if (isset($_SESSION['login_attempts']) && $_SESSION['login_attempts'] >= $max_attempts) {
+    if (time() - $_SESSION['last_attempt_time'] < $lockout_time) {
+        echo "<script>alert('Too many login attempts. Please try again after 15 minutes.');</script>";
+        exit();
+    } else {
+        // Reset attempts after lockout time has passed
+        $_SESSION['login_attempts'] = 0;
+    }
 }
 
 if (isset($_POST['login'])) {
@@ -55,14 +67,19 @@ if (isset($_POST['login'])) {
             if ($result->Status == 1) {
                 $_SESSION['login'] = $email;
                 session_regenerate_id(true); // Regenerate session ID to prevent session fixation
+                $_SESSION['login_attempts'] = 0; // Reset login attempts on successful login
                 echo "<script type='text/javascript'> document.location ='dashboard.php'; </script>";
             } else {
                 echo "<script>alert('Your Account Has been blocked. Please contact admin');</script>";
             }
         } else {
+            $_SESSION['login_attempts'] = isset($_SESSION['login_attempts']) ? $_SESSION['login_attempts'] + 1 : 1;
+            $_SESSION['last_attempt_time'] = time();
             echo "<script>alert('Invalid Details');</script>";
         }
     } else {
+        $_SESSION['login_attempts'] = isset($_SESSION['login_attempts']) ? $_SESSION['login_attempts'] + 1 : 1;
+        $_SESSION['last_attempt_time'] = time();
         echo "<script>alert('Invalid Details');</script>";
     }
 }
